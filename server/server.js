@@ -13,6 +13,7 @@ io.on("connection", (socket) => {
     map.set(socket, countUsers);
 
     socket.emit("all_messages", messages);
+    socket.emit("your_username", "User" + countUsers);
 
     socket.on("message", (data) => {
         console.log("recieved")
