@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getSocket } from "@/lib/socket";
-import Message from "./message";
+import Message from "../../components/message";
 
 interface Message {
     id: number;
@@ -20,18 +20,20 @@ export default function Chat() {
 
         socket.connect();
 
-        socket.on("connect", (username: string) => {
-            console.log("Connected:", socket.id);
+        socket.emit("my_username");
+
+        socket.on("my_username", (username: string) => {
+            setMyUsername(username);
         });
 
-        socket.on("your_username", (username: string) => {
-            console.log(username)
-            setMyUsername(username);
+        socket.on("connect", () => {
+            console.log("Connected:", socket.id);
         });
 
         socket.on("message", (data: Message) => {
             setMessages(prev => [...prev, data]);
             console.log("Message:", data);
+            console.log(myUsername, data.sender, myUsername === data.sender);
         });
 
         socket.on("all_messages", (data: Message[]) => {
@@ -46,19 +48,18 @@ export default function Chat() {
     }, []);
 
     const sendMessage = () => {
-        console.log("I'am pressed!")
-        
         if (!input.trim()) return;
 
         const socket = getSocket();
 
         socket.emit("message", input)
+        setInput("");
     }
 
     return <div className="flex flex-row h-screen">
         <div className="flex flex-col w-1/2 p-5 gap-2">
             {messages.map(message => (
-                <Message key={message.id} message={message.message} user={message.sender} me={myUsername === message.sender}/>
+                <Message key={message.id} message={message.message} user={(myUsername == message.sender) ? "You" : message.sender}/>
             ))}
         </div>
         <div className="flex flex-col gap-3 items-center w-1/2 p-5 bg-amber-50">

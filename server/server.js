@@ -1,29 +1,35 @@
 import { Server } from "socket.io";
 const messages = [];
 const map = new Map();
-var countUsers = 0;
 
-const io = new Server(8080, {
+const io = new Server(3001, {
   // options
 });
 
 io.on("connection", (socket) => {
-    countUsers++;
     console.log("User connected")
-    map.set(socket, countUsers);
 
     socket.emit("all_messages", messages);
-    socket.emit("your_username", "User" + countUsers);
+    socket.emit("your_username", map.get(socket));
+    socket.emit("usernames", Array.of(map.values));
+
+    socket.on("set_username", (username) => {
+        map.set(socket, username);
+        console.log("Set username " + username);
+    });
+
+    socket.on("my_username", () => {
+        socket.emit("my_username", map.get(socket));
+    });
 
     socket.on("message", (data) => {
         console.log("recieved")
-        const message = {id: messages.length, message: data, sender: "User" + map.get(socket)};
+        const message = {id: messages.length, message: data, sender: map.get(socket)};
         messages.push(message)
         io.emit("message", message);
     });
 
     socket.on("disconnect", () => {
-        console.log("Disconnected User" + map.get(socket))
-        map.delete(socket);
-    })
+        console.log("Disconnected User " + map.get(socket))
+    });
 });
