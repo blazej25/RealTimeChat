@@ -3,8 +3,13 @@
 import { useEffect, useState } from "react";
 import { getSocket } from "@/lib/socket";
 
+interface Message {
+    message: string;
+    sender: string;
+}
+
 export default function Chat() {
-    const [message, setMessage] = useState("Default message");
+    const [messages, setMessages] = useState<Message[]>([])
 
     useEffect(() => {
         const socket = getSocket();
@@ -12,12 +17,11 @@ export default function Chat() {
         socket.connect();
 
         socket.on("connect", () => {
-            setMessage("Chat connected")
             console.log("Connected:", socket.id);
         });
 
-        socket.on("message", (data: String, sender: String) => {
-            setMessage("Recieved message: " + data + "\nSender: " + sender);
+        socket.on("message", (data: Message) => {
+            setMessages(prev => [...prev, data]);
             console.log("Message:", data);
         });
 
@@ -27,5 +31,11 @@ export default function Chat() {
         };
     }, []);
 
-    return <div>{message}</div>;
+    return <div className="flex flex-col">
+        {
+            messages.map(message => (
+                <div key={message.message}>Message: {message.message} From: {message.sender}</div>
+            ))
+        }
+    </div>;
 }
