@@ -6,7 +6,8 @@ export const getSocket = (): Socket => {
   if (!socket) {
     socket = io("http://localhost:3001", {
       transports: ["websocket"],
-      autoConnect: false, // important
+      autoConnect: false,
+      withCredentials: true
     });
   }
   return socket;
