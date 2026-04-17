@@ -1,14 +1,62 @@
+import express from "express"
+import http from "http";
+import jwt from "jsonwebtoken";
+import cors from "cors";
 import { Server } from "socket.io";
 import { serialize, parse } from "cookie";
 import { randomUUID } from "crypto";
-import { addUser } from "./db-service.js";
+import { addUser, getPassword } from "./db-service.js";
 
+const SECRET = "kfsdjajfasj";
 const messages = [];
 const map = new Map();
 
-const io = new Server(3001, {
-  cookie: true
+const app = express();
+const server = http.createServer(app);
+
+const io = new Server(server, {
+    cors: {
+        origin: "http://localhost:3000",
+        credentials: true
+    }
 });
+
+app.use(cors({
+    origin: "http://localhost:3000",
+    credentials: true
+}))
+
+app.use(express.json());
+
+app.post("/login", async (req, res) => {
+    const { username, password } = req.body;
+
+    const user = getUser(body.username);
+
+    if (user.password != body.password) {
+        return res.status(401).send("Invalid");
+    }
+
+    const token = jwt.sign({ id: user.id }, SECRET);
+    res.status(201).json({ token });
+});
+
+app.post("/signup", async (req, res) => {
+    const { username, password } = req.body;
+
+    try {
+        addUser(username, password);
+    } catch(error) {
+        console.error(error);
+        return res.status(400).send("Something wrong with given data");
+    }
+
+    return res.status(201).send("Success");
+})
+
+app.listen(3001, () => {
+    console.log("listening on 3001 for new users");
+})
 
 
 // set headers on new connection
