@@ -5,9 +5,7 @@ let socket: Socket | null = null;
 export const getSocket = (): Socket => {
   if (!socket) {
     socket = io("http://localhost:3001", {
-      transports: ["websocket"],
-      autoConnect: false,
-      withCredentials: true
+      withCredentials: true,
     });
   }
   return socket;

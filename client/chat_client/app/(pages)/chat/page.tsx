@@ -24,6 +24,7 @@ export default function Chat() {
         socket.emit("my_username");
 
         socket.on("my_username", (username: string) => {
+            console.log(username);
             setMyUsername(username);
         });
 

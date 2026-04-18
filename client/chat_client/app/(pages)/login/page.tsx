@@ -19,15 +19,32 @@ export default function loginPage() {
         });
     }, []);
 
-    const handleClick = () => {
-        if (!myUsername.trim()) return;
+    const handleClick = async () => {
+        if (!myUsername.trim() || !password.trim()) return;
 
-        const socket = getSocket();
+        const response = await fetch("http://localhost:3001/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            credentials: "include",
+            body: JSON.stringify({ username: myUsername, password: password})
+        })
 
-        if (!usernames.includes(myUsername)) {
-            socket.emit("set_username", myUsername);
+        if (response.ok) {
             router.push("/chat");
+        } else if (response.status == 401) {
+            alert("Wrong username and password combination");
         }
+
+        //if (!myUsername.trim()) return;
+
+        //const socket = getSocket();
+
+        //if (!usernames.includes(myUsername)) {
+            //socket.emit("set_username", myUsername);
+            //router.push("/chat");
+        //}
     };
 
     return <div className="flex flex-col gap-2 justify-center items-center h-screen w-screen bg-amber-50 text-gray-900">

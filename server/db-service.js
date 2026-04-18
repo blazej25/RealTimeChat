@@ -16,24 +16,20 @@ export const addUser = (username, password) => {
     });
 }
 
-export const getPassword = (username) => {
-    pool.query('SEELCT password FROM users WHERE username = $1', [username], (error, result) => {
-        if (error) {
-            console.log(error.message);
-            throw error;
-        }
-
-        return result;
-    })
-}
-
-export const getUser = (username) => {
-    pool.query('SEELCT * FROM users WHERE username = $1', [username], (error, result) => {
-        if (error) {
-            console.log(error.message)
-            return
-        }
-
-        return result;
-    })
+export const getUserByUsername = async (username) => {
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+        return result.rows[0];
+    } catch (error) {
+        console.error(error);
+    }
 } 
+
+export const getUserByID = async (id) => {
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+        return result.rows[0];
+    } catch (error) {
+        console.error(error);
+    }
+}
