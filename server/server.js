@@ -2,6 +2,7 @@ import express from "express"
 import http from "http";
 import jwt from "jsonwebtoken";
 import cors from "cors";
+import bcrypt from "bcrypt";
 import { Server } from "socket.io";
 import { serialize, parse, parseCookie } from "cookie";
 import { randomUUID } from "crypto";
@@ -34,8 +35,10 @@ app.use(express.json());
 app.post("/login", async (req, res) => {
     const { username, password } = req.body;
     const user = await getUserByUsername(username);
+    const valid = await bcrypt.compare(password, user.password);
+    console.log(valid)
 
-    if (user.password != password) {
+    if (!valid) {
         return res.status(401).send("Invalid");
     }
 
@@ -59,9 +62,17 @@ app.post("/login", async (req, res) => {
 // signup a new user
 app.post("/signup", async (req, res) => {
     const { username, password } = req.body;
+    let hashedPassword;
 
     try {
-        addUser(username, password);
+        const salt = await bcrypt.genSalt(10);
+        hashedPassword = await bcrypt.hash(password, salt)
+    } catch {
+        return console.log("cannot hash")
+    }
+
+    try {
+        addUser(username, hashedPassword);
     } catch(error) {
         console.error(error);
         return res.status(400).send("Something wrong with given data");
@@ -82,29 +93,6 @@ app.post("/logout", (req, res) => {
 });
 
 server.listen(3001);
-
-// set headers on new connection
-//io.engine.on("initial_headers", (headers, request) => {
-    //const cookies = request.headers.cookie
-        //? parse(request.headers.cookie)
-        //: {};
-
-    //let userID = cookies.uid;
-
-    //// generate new uid if not present 
-    //if (!userID) {
-    //userID = randomUUID();
-
-    //// set the new uid in a cookie 
-    //addSetCookie(
-        //headers,
-        //serialize("uid", userID, {
-            //maxAge: 60 * 60 * 24 * 365, 
-            //sameSite: "strict"
-        //})
-    //);
-    //}
-//});
 
 io.use((socket, next) => {
     console.log("first");
