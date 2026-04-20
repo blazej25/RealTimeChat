@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { getSocket } from "@/lib/socket";
 import Message from "../../components/message";
+import { useRouter } from "next/navigation";
 
 interface Message {
     id: number;
@@ -15,6 +16,7 @@ export default function Chat() {
     const [input, setInput] = useState("");
     const [myUsername, setMyUsername] = useState<string>();
     const bottomRef = useRef<HTMLDivElement | null>(null);
+    const router = useRouter();
 
     useEffect(() => {
         const socket = getSocket();
@@ -30,6 +32,33 @@ export default function Chat() {
 
         socket.on("connect", () => {
             console.log("Connected:", socket.id);
+        });
+
+        socket.on("connect_error", async (err) => {
+            console.log(err)
+            const res = await fetch("http://localhost:3001/refresh", {
+                method: "POST",
+                credentials: "include"
+            })
+            if (res.status == 200) {
+                socket.connect();
+            } else {
+                socket.disconnect();
+                router.push("/login")
+            }
+        });
+
+        socket.on("expired", async () => {
+            const res = await fetch("http://localhost:3001/refresh", {
+                method: "POST",
+                credentials: "include"
+            })
+            if (res.status == 200) {
+                socket.connect();
+            } else {
+                router.push("/login");
+                socket.disconnect();
+            }
         });
 
         socket.on("message", (data: Message) => {

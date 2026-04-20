@@ -3,6 +3,7 @@ import http from "http";
 import jwt from "jsonwebtoken";
 import cors from "cors";
 import bcrypt from "bcrypt";
+import cookieParser from "cookie-parser"
 import { Server } from "socket.io";
 import { serialize, parse, parseCookie } from "cookie";
 import { randomUUID } from "crypto";
@@ -11,6 +12,7 @@ import { error } from "console";
 import { connect } from "http2";
 
 const SECRET = "OdGsuf9CF8GKDfBrsJeXdIRK4LdVZAYp";
+const REF_SECRET = "vvgJ48eJrzWi4FlUUoyOPdyfx1yU810m";
 const messages = [];
 const map = new Map();
 
@@ -30,6 +32,7 @@ app.use(cors({
 }))
 
 app.use(express.json());
+app.use(cookieParser());
 
 //login the user
 app.post("/login", async (req, res) => {
@@ -44,12 +47,18 @@ app.post("/login", async (req, res) => {
 
     console.log("authenticated user " + username);
     // register a token 
-    const token = jwt.sign({userID: user.id}, SECRET, { expiresIn: "1h"});
-    console.log(token);
+    const access_token = jwt.sign({userID: user.id}, SECRET, { expiresIn: "15s"});
+    const refresh_token = jwt.sign({userID: user.id}, REF_SECRET, { expiresIn: "1m"});
 
     // clear old cookie from previous user
     // set the new token in a cookie
-    res.cookie("auth_token", token, {
+    res.cookie("auth_token", access_token, {
+        httpOnly: true,
+        secure: false,       // true in production (HTTPS)
+        path: "/",
+        overwrite: true
+    });
+    res.cookie("ref_token", refresh_token, {
         httpOnly: true,
         secure: false,       // true in production (HTTPS)
         path: "/",
@@ -81,21 +90,39 @@ app.post("/signup", async (req, res) => {
     return res.status(201).send("Success");
 })
 
-app.post("/logout", (req, res) => {
-  res.clearCookie("auth_token", {
-    httpOnly: true,
-    secure: false, // true in production
-    path: "/",
-    overwrite: true
-  });
+app.post("/refresh", (req, res) => {
+    console.log("refresh tried")
+    const ref_token = req.cookies.ref_token;
 
-  res.sendStatus(200);
+    if (!ref_token) return res.sendStatus(401);
+
+    try {
+        const payload = jwt.verify(ref_token, REF_SECRET);
+        console.log(payload.userID);
+
+        const newAccessToken = jwt.sign(
+        { userID: payload.userID },
+        SECRET,
+        { expiresIn: "15s" }
+        );
+
+        res.cookie("auth_token", newAccessToken, {
+            httpOnly: true,
+            secure: false,       // true in production (HTTPS)
+            path: "/",
+            overwrite: true
+        });
+
+        res.sendStatus(200);
+    } catch {
+        res.sendStatus(403);
+    }
 });
 
 server.listen(3001);
 
 io.use((socket, next) => {
-    console.log("first");
+    console.log("authorization");
     const cookie = socket.request.headers.cookie;
 
     if (!cookie) {
@@ -104,6 +131,8 @@ io.use((socket, next) => {
     }
 
     const token = parseCookie(cookie).auth_token
+    console.log(token)
+
 
     if (!token) {
         console.log("no token")
@@ -115,6 +144,7 @@ io.use((socket, next) => {
         console.log(payload)
         
         socket.data.userID = payload.userID;
+        socket.data.expiresIn = payload.exp * 1000;
         next();
     } catch {
         console.log("unauthorized!!")
@@ -127,8 +157,20 @@ io.on("connection", async (socket) => {
     console.log("User connected")
     const userID = socket.data.userID;
     const user = await getUserByID(userID);
-    console.log(userID);
+    const now = Date.now();
+    const timeLeft = socket.data.expiresIn - now;
     console.log(user);
+
+    if (timeLeft <= 0) {
+        socket.disconnect();
+        return;
+    }
+
+    const timeout = setTimeout(() => {
+        socket.emit("expired");
+        socket.disconnect();
+        return;
+    }, timeLeft)
 
     socket.emit("all_messages", messages);
 
@@ -148,6 +190,7 @@ io.on("connection", async (socket) => {
     // disconnect user
     socket.on("disconnect", () => {
         console.log("Disconnected User " + user.username)
+        clearTimeout(timeout);
     });
 });
 
